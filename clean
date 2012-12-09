@@ -1,0 +1,4 @@
+#!/bin/bash
+
+rm -rvf target/ ChatLink.jar
+rm -vf files libs

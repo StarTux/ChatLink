@@ -1,0 +1,31 @@
+name: ChatLink
+main: com.winthier.chatlink.ChatLinkPlugin
+version: 0.1
+author: StarTux
+description: Connect the chat between multiple Bukkit servers
+depend: [ WinLink ]
+softdepend: [ Herochat, Winthier ]
+commands:
+  chatlink:
+    description: General purpose command for administrators
+    usage: 'Usage: /<command> [command] ...'
+    permission: chatlink.cmd
+  xmsg:
+    description: Send a private message across servers
+    usage: 'Usage: /<command> <player> <message>'
+    permission: chatlink.whisper
+  xtell:
+    description: Send a private message across servers
+    usage: 'Usage: /<command> <player> <message>'
+    permission: chatlink.whisper
+  xwhisper:
+    description: Send a private message across servers
+    usage: 'Usage: /<command> <player> <message>'
+    permission: chatlink.whisper
+permissions:
+  chatlink.cmd:
+    description: Execute the chatlink command
+    default: op
+  chatlink.whisper:
+    description: Send private messages via xmsg, xtell or xwhisper
+    default: op

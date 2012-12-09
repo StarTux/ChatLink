@@ -1,0 +1,4 @@
+channels: []
+whisper:
+  SenderFormat: '&7To {recipient}({server}): {message}'
+  RecipientFormat: '&7From {sender}({server}): {message}'
