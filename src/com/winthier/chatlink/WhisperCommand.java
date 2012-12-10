@@ -23,6 +23,7 @@ package com.winthier.chatlink;
 import com.winthier.chatlink.packet.WhisperPacket;
 import com.winthier.winlink.WinLink;
 import com.winthier.winlink.WinLinkPlugin;
+import java.util.regex.Matcher;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -46,7 +47,7 @@ public class WhisperCommand implements CommandExecutor {
         }
 
         public void msgSender(Player sender, String recipient, String server, String message) {
-                sender.sendMessage(senderFormat.replaceAll("\\{sender\\}", sender.getName()).replaceAll("\\{recipient\\}", recipient).replaceAll("\\{server\\}", server).replaceAll("\\{message\\}", message));
+                sender.sendMessage(senderFormat.replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender.getName())).replaceAll("\\{recipient\\}", Matcher.quoteReplacement(recipient)).replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message)));
         }
 
         public boolean msgRecipient(Player recipient, String sender, String server, String message) {

@@ -26,6 +26,7 @@ import com.winthier.chatlink.packet.ChatPacket;
 import com.winthier.winlink.BukkitRunnable;
 import com.winthier.winlink.WinLink;
 import com.winthier.winlink.WinLinkPlugin;
+import java.util.regex.Matcher;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -37,6 +38,7 @@ public class HeroChatChannel implements Channel, Listener {
         private String name;
         private String channelName;
         private String format;
+        private boolean enabled;
 
         public HeroChatChannel(ChatLinkPlugin plugin, String name) {
                 this.plugin = plugin;
@@ -44,10 +46,12 @@ public class HeroChatChannel implements Channel, Listener {
         }
 
         public void enable() {
+                enabled = true;
                 plugin.getServer().getPluginManager().registerEvents(this, plugin);
         }
 
         public void disable() {
+                enabled = false;
         }
 
         public void loadConfiguration(ConfigurationSection section) {
@@ -56,7 +60,8 @@ public class HeroChatChannel implements Channel, Listener {
         }
 
         public void sendChat(String sender, String server, String message) {
-                String msg = format.replaceAll("\\{server\\}", server).replaceAll("\\{sender\\}", sender).replaceAll("\\{message\\}", message);
+                String msg = format.replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message));
+                plugin.getLogger().info(String.format("[%s][%s]%s: %s", server, name, sender, message));
                 new HeroChatMessageTask(plugin, sender, msg, channelName).runTask(plugin);
         }
 
@@ -66,6 +71,7 @@ public class HeroChatChannel implements Channel, Listener {
 
         @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
         public void onChannelChat(com.dthielke.herochat.ChannelChatEvent event) {
+                if (!enabled) return;
                 if (event.getChannel().getName().equals(channelName)) {
                         WinLinkPlugin.getWinLink().broadcastPacket(new ChatPacket(event.getSender().getName(), name, event.getMessage()));
                 }

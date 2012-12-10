@@ -29,6 +29,7 @@ import com.winthier.winlink.WinLinkPlugin;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.regex.Matcher;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
@@ -70,7 +71,8 @@ public abstract class DefaultChannel implements Channel, Listener {
         @Override
         public void sendChat(final String sender, final String server, final String message) {
                 if (!enabled) return;
-                final String output = format.replaceAll("\\{server\\}", server).replaceAll("\\{sender\\}", sender).replaceAll("\\{message\\}", message);
+                final String output = format.replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message));
+                plugin.getLogger().info(String.format("[%s][%s]%s: %s", server, name, sender, message));
                 new BukkitRunnable() {
                         public void run() {
                                 for (Player player : plugin.getServer().getOnlinePlayers()) {
