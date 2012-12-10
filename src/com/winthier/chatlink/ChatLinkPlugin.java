@@ -127,9 +127,13 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
                         final ServerConnection connection = event.getConnection();
                         new BukkitRunnable() {
                                 public void run() {
-                                        Player player = getServer().getPlayer(packet.sender);
-                                        if (player == null) return;
-                                        whisperCommand.msgSender(player, packet.recipient, connection.getName(), packet.message);
+                                        try {
+                                                Player player = getServer().getPlayer(packet.sender);
+                                                if (player == null) return;
+                                                whisperCommand.msgSender(player, packet.recipient, connection.getName(), packet.message);
+                                        } catch (Exception e) {
+                                                e.printStackTrace();
+                                        }
                                 }
                         }.runTask(this);
                 }
