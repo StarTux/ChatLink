@@ -54,7 +54,7 @@ public class WhisperCommand implements CommandExecutor {
         public boolean msgRecipient(Player recipient, String sender, String server, String message) {
                 if (plugin.ignore.doesIgnore(recipient.getName(), sender)) return false;
                 plugin.getLogger().info(String.format("%s(%s) -> %s: %s", sender, server, recipient.getName(), message));
-                recipient.sendMessage(recipientFormat.replaceAll("\\{sender\\}", sender).replaceAll("\\{recipient\\}", recipient.getName()).replaceAll("\\{server\\}", server).replaceAll("\\{message\\}", message));
+                recipient.sendMessage(recipientFormat.replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender)).replaceAll("\\{recipient\\}", Matcher.quoteReplacement(recipient.getName())).replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message)));
                 return true;
         }
 
