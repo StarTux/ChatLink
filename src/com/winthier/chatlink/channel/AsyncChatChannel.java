@@ -30,8 +30,41 @@ public class AsyncChatChannel extends DefaultChannel {
                 super(plugin, name);
         }
 
-        @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
-        public void onPlayerChat(AsyncPlayerChatEvent event) {
-                onEvent(event, event.getPlayer(), event.getMessage());
+        @Override
+        public AsyncListener getListener(ChatLinkPlugin plugin) {
+                return AsyncListener.getInstance(plugin);
+        }
+
+        protected static class AsyncListener extends DefaultListener {
+                private static AsyncListener instance;
+
+                private AsyncListener(ChatLinkPlugin plugin) {
+                        super(plugin);
+                }
+
+                public static AsyncListener getInstance(ChatLinkPlugin plugin) {
+                        if (instance == null || instance.plugin != plugin) instance = new AsyncListener(plugin);
+                        return instance;
+                }
+
+                @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+                public void onPlayerChat(AsyncPlayerChatEvent event) {
+                        DefaultChannel channel = ignoreMap.get(event.getMessage());
+                        if (channel != null) {
+                                event.setCancelled(true);
+                                channel.ignore(event.getPlayer());
+                                return;
+                        }
+                        synchronized (speakMap) {
+                                for (String key : speakMap.keySet()) {
+                                        if (event.getMessage().startsWith(key)) {
+                                                event.setCancelled(true);
+                                                speakMap.get(key).chat(event.getPlayer(), event.getMessage().substring(key.length()).trim());
+                                                return;
+                                        }
+                                }
+                        }
+                }
+
         }
 }

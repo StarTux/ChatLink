@@ -27,21 +27,24 @@ import com.winthier.winlink.BukkitRunnable;
 import com.winthier.winlink.WinLink;
 import com.winthier.winlink.WinLinkPlugin;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
+import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Listener;
 
-public abstract class DefaultChannel implements Channel, Listener {
+public abstract class DefaultChannel implements Channel {
         protected ChatLinkPlugin plugin;
         protected String name;
-        protected String prefix;
-        protected String ignore;
+        protected String chatCommand;
+        protected String ignoreCommand;
         protected String format;
-        protected boolean enabled = false;
+        protected String permission;
         protected Set<String> ignoreList = Collections.synchronizedSet(new LinkedHashSet<String>());
 
         public DefaultChannel(ChatLinkPlugin plugin, String name) {
@@ -51,26 +54,26 @@ public abstract class DefaultChannel implements Channel, Listener {
 
         @Override
         public void enable() {
-                enabled = true;
-                plugin.getServer().getPluginManager().registerEvents(this, plugin);
         }
-
 
         @Override
         public void disable() {
-                enabled = false;
+                getListener(plugin).unregisterChannel(this);
         }
+
+        protected abstract DefaultListener getListener(ChatLinkPlugin plugin);
 
         @Override
         public void loadConfiguration(ConfigurationSection section) {
-                prefix = section.getString("Prefix", "#");
-                ignore = section.getString("Ignore", "##");
+                chatCommand = section.getString("Prefix", "#");
+                ignoreCommand = section.getString("Ignore");
+                permission = section.getString("Permission");
                 format = Util.replaceColorCodes(section.getString("Format", "&f[{server}]{sender}: {message}"));
+                getListener(plugin).registerChannel(this);
         }
 
         @Override
         public void sendChat(final String sender, final String server, final String message) {
-                if (!enabled) return;
                 final String output = format.replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message));
                 plugin.getLogger().info(String.format("[%s][%s]%s: %s", server, name, sender, message));
                 new BukkitRunnable() {
@@ -78,6 +81,7 @@ public abstract class DefaultChannel implements Channel, Listener {
                                 for (Player player : plugin.getServer().getOnlinePlayers()) {
                                         if (ignoreList.contains(player.getName())) continue;
                                         if (plugin.ignore.doesIgnore(player.getName(), sender)) continue;
+                                        if (permission != null && !player.hasPermission(permission)) continue;
                                         player.sendMessage(output);
                                 }
                         }
@@ -89,29 +93,64 @@ public abstract class DefaultChannel implements Channel, Listener {
                 return name;
         }
 
-        protected void onEvent(final Cancellable event, final Player player, final String message) {
-                if (!enabled) return;
-                if (ignore.equals(message)) {
-                        if (ignoreList.remove(player.getName())) {
-                                new BukkitRunnable() {
-                                        public void run() {
-                                                player.sendMessage("No longer ignoring channel");
-                                        }
-                                }.runTask(plugin);
-                        } else {
-                                ignoreList.add(player.getName());
-                                new BukkitRunnable() {
-                                        public void run() {
-                                                player.sendMessage("Now ignoring channel");
-                                        }
-                                }.runTask(plugin);
+        public String getChatCommand() {
+                return chatCommand;
+        }
+
+        public String getIgnoreCommand() {
+                return ignoreCommand;
+        }
+
+        protected void ignore(final Player player) {
+                if (ignoreList.remove(player.getName())) {
+                        new BukkitRunnable() {
+                                public void run() {
+                                        player.sendMessage("No longer ignoring channel");
+                                }
+                        }.runTask(plugin);
+                } else {
+                        ignoreList.add(player.getName());
+                        new BukkitRunnable() {
+                                public void run() {
+                                        player.sendMessage("Now ignoring channel");
+                                }
+                        }.runTask(plugin);
+                }
+        }
+
+        protected void chat(final Player player, final String message) {
+                if (message.length() == 0) return;
+                // We need a permission check. So in case this is async, defer it to the main thread.
+                new BukkitRunnable() {
+                        public void run() {
+                                if (permission != null && !player.hasPermission(permission)) {
+                                        player.sendMessage(ChatColor.RED + "You do not have permission");
+                                        return;
+                                }
+                                WinLinkPlugin.getWinLink().broadcastPacket(new ChatPacket(player.getName(), name, message));
+                                sendChat(player.getName(), WinLinkPlugin.getWinLink().getServerName(), message);
                         }
-                        event.setCancelled(true);
-                } else if (message.startsWith(prefix)) {
-                        String msg = message.substring(prefix.length());
-                        WinLinkPlugin.getWinLink().broadcastPacket(new ChatPacket(player.getName(), name, msg));
-                        sendChat(player.getName(), WinLinkPlugin.getWinLink().getServerName(), msg);
-                        event.setCancelled(true);
+                }.runTask(plugin);
+        }
+
+        protected abstract static class DefaultListener implements Listener {
+                protected ChatLinkPlugin plugin;
+                protected Map<String, DefaultChannel> speakMap = Collections.synchronizedMap(new HashMap<String, DefaultChannel>());
+                protected Map<String, DefaultChannel> ignoreMap = Collections.synchronizedMap(new HashMap<String, DefaultChannel>());
+
+                protected DefaultListener(ChatLinkPlugin plugin) {
+                        this.plugin = plugin;
+                        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+                }
+
+                public void registerChannel(DefaultChannel channel) {
+                        speakMap.put(channel.getChatCommand(), channel);
+                        if (channel.getIgnoreCommand() != null) ignoreMap.put(channel.getIgnoreCommand(), channel);
+                }
+
+                public void unregisterChannel(DefaultChannel channel) {
+                        speakMap.remove(channel.getChatCommand());
+                        if (channel.getIgnoreCommand() != null) ignoreMap.remove(channel.getIgnoreCommand());
                 }
         }
 }

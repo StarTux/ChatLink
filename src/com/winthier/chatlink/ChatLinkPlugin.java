@@ -57,13 +57,12 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
 
         @Override
         public void onEnable() {
-                loadConfiguration();
                 if (getServer().getPluginManager().getPlugin("Herochat") != null) ignore = new HeroChatIgnore();
                 else if (getServer().getPluginManager().getPlugin("Winthier") != null) ignore = new WinthierIgnore();
                 else ignore = new NullIgnore();
                 whisperCommand = new WhisperCommand(this);
-                whisperCommand.loadConfiguration();
                 getConfig().options().copyDefaults(true);
+                loadConfiguration();
                 saveConfig();
                 getServer().getPluginManager().registerEvents(this, this);
         }
@@ -71,6 +70,7 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
         @Override
         public void onDisable() {
                 clearChannels();
+                ignore = null;
         }
 
         private void clearChannels() {
@@ -85,9 +85,15 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
         @Override
         public boolean onCommand(CommandSender sender, Command command, String token, String args[]) {
                 if (args.length == 1 && args[0].equals("reload")) {
-                        clearChannels();
-                        reloadConfig();
-                        loadConfiguration();
+                        try {
+                                clearChannels();
+                                reloadConfig();
+                                loadConfiguration();
+                                sender.sendMessage("Configuration reloaded.");
+                        } catch (Exception e) {
+                                e.printStackTrace();
+                                sender.sendMessage("An error occured. See console.");
+                        }
                 } else {
                         sender.sendMessage("Usage: /chatlink [subcommand] ...");
                         sender.sendMessage("Subcommands: reload");
@@ -141,6 +147,7 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
 
         public void loadConfiguration() {
                 synchronized (channels) { for (Channel channel : channels.values()) channel.disable(); }
+                whisperCommand.loadConfiguration();
                 channels.clear();
                 ConfigurationSection channelsSection = getConfig().getConfigurationSection("channels");
                 if (channelsSection == null) {

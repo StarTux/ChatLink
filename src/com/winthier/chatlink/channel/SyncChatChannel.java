@@ -30,8 +30,41 @@ public class SyncChatChannel extends DefaultChannel {
                 super(plugin, name);
         }
 
-        @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
-        public void onPlayerChat(PlayerChatEvent event) {
-                onEvent(event, event.getPlayer(), event.getMessage());
+        @Override
+        public SyncListener getListener(ChatLinkPlugin plugin) {
+                return SyncListener.getInstance(plugin);
+        }
+
+        protected static class SyncListener extends DefaultListener {
+                private static SyncListener instance;
+
+                private SyncListener(ChatLinkPlugin plugin) {
+                        super(plugin);
+                }
+
+                public static SyncListener getInstance(ChatLinkPlugin plugin) {
+                        if (instance == null || instance.plugin != plugin) instance = new SyncListener(plugin);
+                        return instance;
+                }
+
+                @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+                public void onPlayerChat(PlayerChatEvent event) {
+                        DefaultChannel channel = ignoreMap.get(event.getMessage());
+                        if (channel != null) {
+                                event.setCancelled(true);
+                                channel.ignore(event.getPlayer());
+                                return;
+                        }
+                        synchronized (speakMap) {
+                                for (String key : speakMap.keySet()) {
+                                        if (event.getMessage().startsWith(key)) {
+                                                event.setCancelled(true);
+                                                speakMap.get(key).chat(event.getPlayer(), event.getMessage().substring(key.length()).trim());
+                                                return;
+                                        }
+                                }
+                        }
+                }
+
         }
 }
