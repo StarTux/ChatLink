@@ -47,6 +47,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ChatLinkPlugin extends JavaPlugin implements Listener {
@@ -54,9 +55,11 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
         private BukkitRunnable task;
         private WhisperCommand whisperCommand;
         public IgnoreBackend ignore;
+        public net.milkbowl.vault.chat.Chat vaultChat;
 
         @Override
         public void onEnable() {
+                setupChat();
                 if (getServer().getPluginManager().getPlugin("Herochat") != null) ignore = new HeroChatIgnore();
                 else if (getServer().getPluginManager().getPlugin("Winthier") != null) ignore = new WinthierIgnore();
                 else ignore = new NullIgnore();
@@ -65,6 +68,18 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
                 loadConfiguration();
                 saveConfig();
                 getServer().getPluginManager().registerEvents(this, this);
+        }
+
+        private boolean setupChat() {
+                RegisteredServiceProvider<net.milkbowl.vault.chat.Chat> chatProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.chat.Chat.class);
+                if (chatProvider != null) {
+                        vaultChat = chatProvider.getProvider();
+                }
+                return (vaultChat != null);
+        }
+
+        public net.milkbowl.vault.chat.Chat getChat() {
+                return vaultChat;
         }
 
         @Override
