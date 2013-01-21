@@ -103,6 +103,7 @@ public abstract class DefaultChannel implements Channel {
 
         protected void ignore(final Player player) {
                 if (ignoreList.remove(player.getName())) {
+                        plugin.getLogger().info(player.getName() + " will no longer ignore channel " + name);
                         new BukkitRunnable() {
                                 public void run() {
                                         player.sendMessage("No longer ignoring channel");
@@ -110,6 +111,7 @@ public abstract class DefaultChannel implements Channel {
                         }.runTask(plugin);
                 } else {
                         ignoreList.add(player.getName());
+                        plugin.getLogger().info(player.getName() + " will ignore channel " + name);
                         new BukkitRunnable() {
                                 public void run() {
                                         player.sendMessage("Now ignoring channel");
