@@ -66,7 +66,8 @@ public class HeroChatChannel implements Channel, Listener {
 
         @Override
         public void sendChat(String sender, String server, String message) {
-                String msg = format.replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message));
+                String worldName = plugin.getServer().getWorlds().get(0).getName();
+                String msg = format.replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message)).replaceAll("\\{prefix\\}", Matcher.quoteReplacement(Util.replaceColorCodes(plugin.getPrefix(sender)))).replaceAll("\\{suffix\\}", Matcher.quoteReplacement(Util.replaceColorCodes(plugin.getSuffix(sender))));
                 plugin.getLogger().info(String.format("[%s][%s]%s: %s", server, name, sender, message));
                 new HeroChatMessageTask(plugin, sender, msg, channelName).runTask(plugin);
         }

@@ -78,8 +78,20 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
                 return (vaultChat != null);
         }
 
-        public net.milkbowl.vault.chat.Chat getChat() {
+        private net.milkbowl.vault.chat.Chat getChat() {
                 return vaultChat;
+        }
+
+        public String getPrefix(String player) {
+                if (getChat() == null) return "";
+                String worldName = getServer().getWorlds().get(0).getName();
+                return getChat().getPlayerPrefix(worldName, player);
+        }
+
+        public String getSuffix(String player) {
+                if (getChat() == null) return "";
+                String worldName = getServer().getWorlds().get(0).getName();
+                return getChat().getPlayerSuffix(worldName, player);
         }
 
         @Override
