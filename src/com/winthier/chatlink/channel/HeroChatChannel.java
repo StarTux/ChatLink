@@ -66,7 +66,6 @@ public class HeroChatChannel implements Channel, Listener {
 
         @Override
         public void sendChat(String sender, String server, String message) {
-                String worldName = plugin.getServer().getWorlds().get(0).getName();
                 String msg = format.replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message)).replaceAll("\\{prefix\\}", Matcher.quoteReplacement(Util.replaceColorCodes(plugin.getPrefix(sender)))).replaceAll("\\{suffix\\}", Matcher.quoteReplacement(Util.replaceColorCodes(plugin.getSuffix(sender))));
                 plugin.getLogger().info(String.format("[%s][%s]%s: %s", server, name, sender, message));
                 new HeroChatMessageTask(plugin, sender, msg, channelName).runTask(plugin);
@@ -141,8 +140,9 @@ class HeroChatListener implements Listener {
                 channels.remove(channel.getChannelName());
         }
 
-        @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+        @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
         public void onChannelChat(ChannelChatEvent event) {
+                if (event.getResult() != com.dthielke.herochat.Chatter.Result.ALLOWED) return;
                 HeroChatChannel channel = channels.get(event.getChannel().getName());
                 if (channel != null) channel.onChannelChat(event);
         }
