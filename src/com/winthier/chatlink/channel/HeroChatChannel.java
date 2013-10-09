@@ -24,7 +24,7 @@ import com.dthielke.herochat.ChannelChatEvent;
 import com.winthier.chatlink.ChatLinkPlugin;
 import com.winthier.chatlink.Util;
 import com.winthier.chatlink.packet.ChatPacket;
-import com.winthier.winlink.BukkitRunnable;
+import org.bukkit.scheduler.BukkitRunnable;
 import com.winthier.winlink.WinLink;
 import com.winthier.winlink.WinLinkPlugin;
 import java.util.Collections;

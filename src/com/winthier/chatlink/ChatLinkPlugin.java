@@ -23,7 +23,6 @@ package com.winthier.chatlink;
 import com.winthier.chatlink.channel.AsyncChatChannel;
 import com.winthier.chatlink.channel.Channel;
 import com.winthier.chatlink.channel.HeroChatChannel;
-import com.winthier.chatlink.channel.SyncChatChannel;
 import com.winthier.chatlink.ignore.HeroChatIgnore;
 import com.winthier.chatlink.ignore.IgnoreBackend;
 import com.winthier.chatlink.ignore.NullIgnore;
@@ -31,7 +30,6 @@ import com.winthier.chatlink.ignore.WinthierIgnore;
 import com.winthier.chatlink.packet.ChatPacket;
 import com.winthier.chatlink.packet.WhisperAckPacket;
 import com.winthier.chatlink.packet.WhisperPacket;
-import com.winthier.winlink.BukkitRunnable;
 import com.winthier.winlink.ClientConnection;
 import com.winthier.winlink.ServerConnection;
 import com.winthier.winlink.WinLinkPlugin;
@@ -40,6 +38,7 @@ import com.winthier.winlink.event.ServerReceivePacketEvent;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -49,6 +48,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
 public class ChatLinkPlugin extends JavaPlugin implements Listener {
         private Map<String, Channel> channels = Collections.synchronizedMap(new HashMap<String, Channel>());
@@ -56,10 +56,12 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
         private WhisperCommand whisperCommand;
         public IgnoreBackend ignore;
         public net.milkbowl.vault.chat.Chat vaultChat;
+        public net.milkbowl.vault.permission.Permission vaultPerm;
 
         @Override
         public void onEnable() {
                 setupChat();
+                setupPermissions();
                 if (getServer().getPluginManager().getPlugin("Herochat") != null) ignore = new HeroChatIgnore();
                 else if (getServer().getPluginManager().getPlugin("Winthier") != null) ignore = new WinthierIgnore();
                 else ignore = new NullIgnore();
@@ -78,20 +80,36 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
                 return (vaultChat != null);
         }
 
+        private boolean setupPermissions() {
+                RegisteredServiceProvider<net.milkbowl.vault.permission.Permission> permissionProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.permission.Permission.class);
+                if (permissionProvider != null) {
+                        vaultPerm = permissionProvider.getProvider();
+                }
+                return (vaultPerm != null);
+        }
+
         private net.milkbowl.vault.chat.Chat getChat() {
                 return vaultChat;
         }
 
         public String getPrefix(String player) {
-                if (getChat() == null) return "";
-                String worldName = getServer().getWorlds().get(0).getName();
-                return getChat().getPlayerPrefix(worldName, player);
+                try {
+                        if (getChat() == null) return "";
+                        String worldName = getServer().getWorlds().get(0).getName();
+                        return getChat().getPlayerPrefix(worldName, player);
+                } catch (NoClassDefFoundError cnfe) {
+                        return "";
+                }
         }
 
         public String getSuffix(String player) {
+                try {
                 if (getChat() == null) return "";
                 String worldName = getServer().getWorlds().get(0).getName();
                 return getChat().getPlayerSuffix(worldName, player);
+                } catch (NoClassDefFoundError cnfe) {
+                        return "";
+                }
         }
 
         @Override
@@ -134,10 +152,14 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
                         ChatPacket packet = (ChatPacket)event.getPacket();
                         Channel channel = channels.get(packet.channel);
                         if (channel == null) {
-                                getLogger().warning("Channel not found: `" + packet.channel + "'");
+                                //getLogger().warning("Channel not found: `" + packet.channel + "'");
                                 return;
                         }
-                        channel.sendChat(packet.sender, event.getConnection().getName(), packet.message);
+                        String message = packet.message;
+                        if (vaultPerm != null && vaultPerm.has(getServer().getWorlds().get(0), packet.sender, "chatlink.colors")) {
+                                message = ChatColor.translateAlternateColorCodes('&', message);
+                        }
+                        channel.sendChat(packet.sender, event.getConnection().getName(), message);
                 } else if (event.getPacket() instanceof WhisperPacket) {
                         final WhisperPacket packet = (WhisperPacket)event.getPacket();
                         final ClientConnection connection = event.getConnection();
@@ -185,9 +207,7 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
                         String channelType = channelSection.getString("Type", "default");
                         Channel channel;
                         if (channelType.equalsIgnoreCase("default")) {
-                                channel = new SyncChatChannel(this, name);
-                        } else if (channelType.equalsIgnoreCase("sync")) {
-                                channel = new SyncChatChannel(this, name);
+                                channel = new AsyncChatChannel(this, name);
                         } else if (channelType.equalsIgnoreCase("async")) {
                                 channel = new AsyncChatChannel(this, name);
                         } else if (channelType.equalsIgnoreCase("HeroChat")) {

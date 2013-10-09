@@ -11,14 +11,7 @@ commands:
     usage: 'Usage: /<command> [command] ...'
     permission: chatlink.cmd
   xmsg:
-    description: Send a private message across servers
-    usage: 'Usage: /<command> <player> <message>'
-    permission: chatlink.whisper
-  xtell:
-    description: Send a private message across servers
-    usage: 'Usage: /<command> <player> <message>'
-    permission: chatlink.whisper
-  xwhisper:
+    aliases: [ xtell, xwhisper ]
     description: Send a private message across servers
     usage: 'Usage: /<command> <player> <message>'
     permission: chatlink.whisper
@@ -28,4 +21,7 @@ permissions:
     default: op
   chatlink.whisper:
     description: Send private messages via xmsg, xtell or xwhisper
+    default: op
+  chatlink.colors:
+    description: Use chat colors
     default: op

@@ -23,7 +23,7 @@ package com.winthier.chatlink.channel;
 import com.winthier.chatlink.ChatLinkPlugin;
 import com.winthier.chatlink.Util;
 import com.winthier.chatlink.packet.ChatPacket;
-import com.winthier.winlink.BukkitRunnable;
+import org.bukkit.scheduler.BukkitRunnable;
 import com.winthier.winlink.WinLink;
 import com.winthier.winlink.WinLinkPlugin;
 import java.util.Collections;
@@ -123,7 +123,7 @@ public abstract class DefaultChannel implements Channel {
 
         protected void chat(final Player player, final String message) {
                 if (message.length() == 0) return;
-                // We need a permission check. So in case this is async, defer it to the main thread.
+                // We need a permission check, so defer it to the main thread.
                 new BukkitRunnable() {
                         public void run() {
                                 if (permission != null && !player.hasPermission(permission)) {
