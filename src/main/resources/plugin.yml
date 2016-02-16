@@ -3,8 +3,8 @@ main: com.winthier.chatlink.ChatLinkPlugin
 version: 0.1
 author: StarTux
 description: Connect the chat between multiple Bukkit servers
-depend: [ WinLink, Vault ]
-softdepend: [ Herochat, Winthier ]
+depend: [ Connect, Vault ]
+softdepend: [ Herochat ]
 commands:
   chatlink:
     description: General purpose command for administrators

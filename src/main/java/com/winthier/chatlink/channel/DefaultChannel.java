@@ -23,9 +23,7 @@ package com.winthier.chatlink.channel;
 import com.winthier.chatlink.ChatLinkPlugin;
 import com.winthier.chatlink.Util;
 import com.winthier.chatlink.packet.ChatPacket;
-import org.bukkit.scheduler.BukkitRunnable;
-import com.winthier.winlink.WinLink;
-import com.winthier.winlink.WinLinkPlugin;
+import com.winthier.connect.Connect;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -37,6 +35,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Listener;
+import org.bukkit.scheduler.BukkitRunnable;
 
 public abstract class DefaultChannel implements Channel {
         protected ChatLinkPlugin plugin;
@@ -130,8 +129,8 @@ public abstract class DefaultChannel implements Channel {
                                         player.sendMessage(ChatColor.RED + "You do not have permission");
                                         return;
                                 }
-                                WinLinkPlugin.getWinLink().broadcastPacket(new ChatPacket(player.getName(), name, message));
-                                sendChat(player.getName(), WinLinkPlugin.getWinLink().getServerName(), message);
+                                plugin.broadcastMessage(new ChatPacket(player.getName(), name, message));
+                                sendChat(player.getName(), Connect.getInstance().getName(), message);
                         }
                 }.runTask(plugin);
         }

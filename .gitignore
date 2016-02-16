@@ -5,6 +5,5 @@
 *.war
 *.ear
 
-/files
-/libs
-/trash
+/target
+/lib

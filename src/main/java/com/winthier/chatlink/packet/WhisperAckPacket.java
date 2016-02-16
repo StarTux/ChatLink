@@ -20,9 +20,10 @@
 
 package com.winthier.chatlink.packet;
 
-import java.io.Serializable;
+import java.util.Map;
+import java.util.HashMap;
 
-public class WhisperAckPacket implements Serializable {
+public class WhisperAckPacket implements Packet {
         public final String recipient;
         public final String sender;
         public final String message;
@@ -32,4 +33,21 @@ public class WhisperAckPacket implements Serializable {
                 this.sender = sender;
                 this.message = message;
         }
+
+    public Map<String, String> serialize() {
+        Map<String, String> result = new HashMap<>();
+        result.put("type", "WhisperAck");
+        result.put("sender", sender);
+        result.put("recipient", recipient);
+        result.put("message", message);
+        return result;
+    }
+
+    public static WhisperAckPacket deserialize(Map<String, String> map) {
+        return new WhisperAckPacket(
+            (String)map.get("sender"),
+            (String)map.get("recipient"),
+            (String)map.get("message")
+            );
+    }
 }

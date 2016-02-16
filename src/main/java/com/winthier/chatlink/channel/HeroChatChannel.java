@@ -25,8 +25,6 @@ import com.winthier.chatlink.ChatLinkPlugin;
 import com.winthier.chatlink.Util;
 import com.winthier.chatlink.packet.ChatPacket;
 import org.bukkit.scheduler.BukkitRunnable;
-import com.winthier.winlink.WinLink;
-import com.winthier.winlink.WinLinkPlugin;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -85,7 +83,7 @@ public class HeroChatChannel implements Channel, Listener {
          * ChannelChatEvent with a matching channel name.
          */
         public void onChannelChat(ChannelChatEvent event) {
-                WinLinkPlugin.getWinLink().broadcastPacket(new ChatPacket(event.getSender().getName(), name, event.getMessage()));
+                plugin.broadcastMessage(new ChatPacket(event.getSender().getName(), name, event.getMessage()));
         }
 }
 

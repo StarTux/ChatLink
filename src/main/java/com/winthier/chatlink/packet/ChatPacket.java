@@ -20,16 +20,34 @@
 
 package com.winthier.chatlink.packet;
 
-import java.io.Serializable;
+import java.util.Map;
+import java.util.HashMap;
 
-public class ChatPacket implements Serializable {
-        public final String sender;
-        public final String channel;
-        public final String message;
+public class ChatPacket implements Packet {
+    public final String sender;
+    public final String channel;
+    public final String message;
 
-        public ChatPacket(String sender, String channel, String message) {
-                this.sender = sender;
-                this.channel = channel;
-                this.message = message;
-        }
+    public ChatPacket(String sender, String channel, String message) {
+        this.sender = sender;
+        this.channel = channel;
+        this.message = message;
+    }
+
+    public Map<String, String> serialize() {
+        Map<String, String> result = new HashMap<>();
+        result.put("type", "Chat");
+        result.put("sender", sender);
+        result.put("channel", channel);
+        result.put("message", message);
+        return result;
+    }
+
+    public static ChatPacket deserialize(Map<String, String> map) {
+        return new ChatPacket(
+            (String)map.get("sender"),
+            (String)map.get("channel"),
+            (String)map.get("message")
+            );
+    }
 }

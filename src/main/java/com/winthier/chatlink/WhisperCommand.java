@@ -21,8 +21,7 @@
 package com.winthier.chatlink;
 
 import com.winthier.chatlink.packet.WhisperPacket;
-import com.winthier.winlink.WinLink;
-import com.winthier.winlink.WinLinkPlugin;
+import com.winthier.connect.Connect;
 import java.util.Collections;
 import java.util.regex.Matcher;
 import org.bukkit.command.Command;
@@ -49,13 +48,13 @@ public class WhisperCommand implements CommandExecutor {
     }
 
     public void msgSender(Player sender, String recipient, String server, String message) {
-        server = WinLinkPlugin.getInstance().getDisplayName(server);
+        server = Connect.getInstance().getClient(server).getDisplayName();
         plugin.getLogger().info(String.format("%s -> %s(%s): %s", sender.getName(), recipient, server, message));
         sender.sendMessage(senderFormat.replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender.getName())).replaceAll("\\{recipient\\}", Matcher.quoteReplacement(recipient)).replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message)));
     }
 
     public boolean msgRecipient(Player recipient, String sender, String server, String message) {
-        server = WinLinkPlugin.getInstance().getDisplayName(server);
+        server = Connect.getInstance().getClient(server).getDisplayName();
         if (plugin.ignore.doesIgnore(recipient.getName(), sender)) return false;
         plugin.getLogger().info(String.format("%s(%s) -> %s: %s", sender, server, recipient.getName(), message));
         recipient.sendMessage(recipientFormat.replaceAll("\\{sender\\}", Matcher.quoteReplacement(sender)).replaceAll("\\{recipient\\}", Matcher.quoteReplacement(recipient.getName())).replaceAll("\\{server\\}", Matcher.quoteReplacement(server)).replaceAll("\\{message\\}", Matcher.quoteReplacement(message)));
@@ -77,10 +76,10 @@ public class WhisperCommand implements CommandExecutor {
         // }
         Player receiver = plugin.getServer().getPlayer(recipient);
         if (receiver == null) {
-            WinLinkPlugin.getWinLink().broadcastPacket(new WhisperPacket(sender.getName(), recipient, message));
+            plugin.broadcastMessage(new WhisperPacket(sender.getName(), recipient, message));
         } else {
             plugin.repliers.put(receiver.getName(), sender.getName());
-            String serverName = WinLinkPlugin.getInstance().getWinLink().getServerName();
+            String serverName = Connect.getInstance().getName();
             if (player != null) msgSender(player, receiver.getName(), serverName, message);
             msgRecipient(receiver, sender.getName(), serverName, message);
         }

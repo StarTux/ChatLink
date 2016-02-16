@@ -20,8 +20,6 @@
 
 package com.winthier.chatlink;
 
-import com.winthier.winlink.WinLink;
-import com.winthier.winlink.WinLinkPlugin;
 import java.util.Collections;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;

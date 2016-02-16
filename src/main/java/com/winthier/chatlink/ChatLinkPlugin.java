@@ -26,15 +26,13 @@ import com.winthier.chatlink.channel.HeroChatChannel;
 import com.winthier.chatlink.ignore.HeroChatIgnore;
 import com.winthier.chatlink.ignore.IgnoreBackend;
 import com.winthier.chatlink.ignore.NullIgnore;
-import com.winthier.chatlink.ignore.WinthierIgnore;
 import com.winthier.chatlink.packet.ChatPacket;
+import com.winthier.chatlink.packet.Packet;
 import com.winthier.chatlink.packet.WhisperAckPacket;
 import com.winthier.chatlink.packet.WhisperPacket;
-import com.winthier.winlink.ClientConnection;
-import com.winthier.winlink.ServerConnection;
-import com.winthier.winlink.WinLinkPlugin;
-import com.winthier.winlink.event.ClientReceivePacketEvent;
-import com.winthier.winlink.event.ServerReceivePacketEvent;
+import com.winthier.connect.Connect;
+import com.winthier.connect.Message;
+import com.winthier.connect.bukkit.event.ConnectMessageEvent;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,6 +47,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+
 public class ChatLinkPlugin extends JavaPlugin implements Listener {
     Map<String, Channel> channels = Collections.synchronizedMap(new HashMap<>());
     Map<String, String> repliers = Collections.synchronizedMap(new HashMap<>());
@@ -64,7 +63,6 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
         setupChat();
         setupPermissions();
         if (getServer().getPluginManager().getPlugin("Herochat") != null) ignore = new HeroChatIgnore();
-        else if (getServer().getPluginManager().getPlugin("Winthier") != null) ignore = new WinthierIgnore();
         else ignore = new NullIgnore();
         whisperCommand = new WhisperCommand(this);
         replyCommand = new ReplyCommand(this);
@@ -147,23 +145,26 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-    public void onClientReceivePacket(ClientReceivePacketEvent event) {
-        if (event.getPacket() instanceof ChatPacket) {
-            ChatPacket packet = (ChatPacket)event.getPacket();
+    @EventHandler
+    public void onConnectMessage(ConnectMessageEvent event) {
+        final Message message = event.getMessage();
+        if (!message.getChannel().equals("ChatLink")) return;
+        Map<String, String> map = (Map<String, String>)message.getPayload();
+        String messageType = map.get("type");
+        if (messageType.equals("Chat")) {
+            ChatPacket packet = ChatPacket.deserialize(map);
             Channel channel = channels.get(packet.channel);
             if (channel == null) {
                 //getLogger().warning("Channel not found: `" + packet.channel + "'");
                 return;
             }
-            String message = packet.message;
+            String msg = packet.message;
             if (vaultPerm != null && vaultPerm.has(getServer().getWorlds().get(0), packet.sender, "chatlink.colors")) {
-                message = ChatColor.translateAlternateColorCodes('&', message);
+                msg = ChatColor.translateAlternateColorCodes('&', msg);
             }
-            channel.sendChat(packet.sender, event.getConnection().getName(), message);
-        } else if (event.getPacket() instanceof WhisperPacket) {
-            final WhisperPacket packet = (WhisperPacket)event.getPacket();
-            final ClientConnection connection = event.getConnection();
+            channel.sendChat(packet.sender, message.getFrom(), msg);
+        } else if (messageType.equals("Whisper")) {
+            final WhisperPacket packet = WhisperPacket.deserialize(map);
             new BukkitRunnable() {
                 public void run() {
                     Player player = getServer().getPlayer(packet.recipient);
@@ -171,26 +172,20 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
                         return;
                     }
                     repliers.put(player.getName(), packet.sender);
-                    if (whisperCommand.msgRecipient(player, packet.sender, connection.getName(), packet.message)) {
-                        connection.sendPacket(new WhisperAckPacket(player.getName(), packet.sender, packet.message));
+                    if (whisperCommand.msgRecipient(player, packet.sender, message.getFrom(), packet.message)) {
+                        Connect.getInstance().send(message.getFrom(), "ChatLink", new WhisperAckPacket(player.getName(), packet.sender, packet.message).serialize());
                     }
                 }
             }.runTask(this);
-        }
-    }
-        
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-    public void onServerReceivePacket(ServerReceivePacketEvent event) {
-        if (event.getPacket() instanceof WhisperAckPacket) {
-            final WhisperAckPacket packet = (WhisperAckPacket)event.getPacket();
-            final ServerConnection connection = event.getConnection();
+        } else if (messageType.equals("WhisperAck")) {
+            final WhisperAckPacket packet = WhisperAckPacket.deserialize(map);
             new BukkitRunnable() {
                 public void run() {
                     try {
                         repliers.put(packet.recipient, packet.sender);
                         Player player = getServer().getPlayer(packet.sender);
                         if (player == null) return;
-                        whisperCommand.msgSender(player, packet.recipient, connection.getName(), packet.message);
+                        whisperCommand.msgSender(player, packet.recipient, message.getFrom(), packet.message);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -225,5 +220,9 @@ public class ChatLinkPlugin extends JavaPlugin implements Listener {
             channel.loadConfiguration(channelSection);
             channels.put(name, channel);
         }
+    }
+
+    public void broadcastMessage(Packet packet) {
+        Connect.getInstance().broadcast("ChatLink", packet.serialize());
     }
 }
