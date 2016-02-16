@@ -49,176 +49,181 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-
 public class ChatLinkPlugin extends JavaPlugin implements Listener {
-        private Map<String, Channel> channels = Collections.synchronizedMap(new HashMap<String, Channel>());
-        private BukkitRunnable task;
-        private WhisperCommand whisperCommand;
-        public IgnoreBackend ignore;
-        public net.milkbowl.vault.chat.Chat vaultChat;
-        public net.milkbowl.vault.permission.Permission vaultPerm;
+    Map<String, Channel> channels = Collections.synchronizedMap(new HashMap<>());
+    Map<String, String> repliers = Collections.synchronizedMap(new HashMap<>());
+    private BukkitRunnable task;
+    private WhisperCommand whisperCommand;
+    private ReplyCommand replyCommand;
+    public IgnoreBackend ignore;
+    public net.milkbowl.vault.chat.Chat vaultChat;
+    public net.milkbowl.vault.permission.Permission vaultPerm;
 
-        @Override
-        public void onEnable() {
-                setupChat();
-                setupPermissions();
-                if (getServer().getPluginManager().getPlugin("Herochat") != null) ignore = new HeroChatIgnore();
-                else if (getServer().getPluginManager().getPlugin("Winthier") != null) ignore = new WinthierIgnore();
-                else ignore = new NullIgnore();
-                whisperCommand = new WhisperCommand(this);
-                getConfig().options().copyDefaults(true);
-                loadConfiguration();
-                saveConfig();
-                getServer().getPluginManager().registerEvents(this, this);
+    @Override
+    public void onEnable() {
+        setupChat();
+        setupPermissions();
+        if (getServer().getPluginManager().getPlugin("Herochat") != null) ignore = new HeroChatIgnore();
+        else if (getServer().getPluginManager().getPlugin("Winthier") != null) ignore = new WinthierIgnore();
+        else ignore = new NullIgnore();
+        whisperCommand = new WhisperCommand(this);
+        replyCommand = new ReplyCommand(this);
+        saveDefaultConfig();
+        loadConfiguration();
+        getServer().getPluginManager().registerEvents(this, this);
+    }
+
+    private boolean setupChat() {
+        RegisteredServiceProvider<net.milkbowl.vault.chat.Chat> chatProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.chat.Chat.class);
+        if (chatProvider != null) {
+            vaultChat = chatProvider.getProvider();
         }
+        return (vaultChat != null);
+    }
 
-        private boolean setupChat() {
-                RegisteredServiceProvider<net.milkbowl.vault.chat.Chat> chatProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.chat.Chat.class);
-                if (chatProvider != null) {
-                        vaultChat = chatProvider.getProvider();
-                }
-                return (vaultChat != null);
+    private boolean setupPermissions() {
+        RegisteredServiceProvider<net.milkbowl.vault.permission.Permission> permissionProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.permission.Permission.class);
+        if (permissionProvider != null) {
+            vaultPerm = permissionProvider.getProvider();
         }
+        return (vaultPerm != null);
+    }
 
-        private boolean setupPermissions() {
-                RegisteredServiceProvider<net.milkbowl.vault.permission.Permission> permissionProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.permission.Permission.class);
-                if (permissionProvider != null) {
-                        vaultPerm = permissionProvider.getProvider();
-                }
-                return (vaultPerm != null);
+    private net.milkbowl.vault.chat.Chat getChat() {
+        return vaultChat;
+    }
+
+    public String getPrefix(String player) {
+        try {
+            if (getChat() == null) return "";
+            String worldName = getServer().getWorlds().get(0).getName();
+            return getChat().getPlayerPrefix(worldName, player);
+        } catch (NoClassDefFoundError cnfe) {
+            return "";
         }
+    }
 
-        private net.milkbowl.vault.chat.Chat getChat() {
-                return vaultChat;
+    public String getSuffix(String player) {
+        try {
+            if (getChat() == null) return "";
+            String worldName = getServer().getWorlds().get(0).getName();
+            return getChat().getPlayerSuffix(worldName, player);
+        } catch (NoClassDefFoundError cnfe) {
+            return "";
         }
+    }
 
-        public String getPrefix(String player) {
-                try {
-                        if (getChat() == null) return "";
-                        String worldName = getServer().getWorlds().get(0).getName();
-                        return getChat().getPlayerPrefix(worldName, player);
-                } catch (NoClassDefFoundError cnfe) {
-                        return "";
-                }
+    @Override
+    public void onDisable() {
+        clearChannels();
+        ignore = null;
+    }
+
+    private void clearChannels() {
+        synchronized(channels) {
+            for (Channel channel : channels.values()) {
+                channel.disable();
+            }
         }
+        channels.clear();
+    }
 
-        public String getSuffix(String player) {
-                try {
-                if (getChat() == null) return "";
-                String worldName = getServer().getWorlds().get(0).getName();
-                return getChat().getPlayerSuffix(worldName, player);
-                } catch (NoClassDefFoundError cnfe) {
-                        return "";
-                }
-        }
-
-        @Override
-        public void onDisable() {
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String token, String args[]) {
+        if (args.length == 1 && args[0].equals("reload")) {
+            try {
                 clearChannels();
-                ignore = null;
+                reloadConfig();
+                loadConfiguration();
+                sender.sendMessage("Configuration reloaded.");
+            } catch (Exception e) {
+                e.printStackTrace();
+                sender.sendMessage("An error occured. See console.");
+            }
+        } else {
+            sender.sendMessage("Usage: /chatlink [subcommand] ...");
+            sender.sendMessage("Subcommands: reload");
         }
+        return true;
+    }
 
-        private void clearChannels() {
-                synchronized(channels) {
-                        for (Channel channel : channels.values()) {
-                                channel.disable();
-                        }
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    public void onClientReceivePacket(ClientReceivePacketEvent event) {
+        if (event.getPacket() instanceof ChatPacket) {
+            ChatPacket packet = (ChatPacket)event.getPacket();
+            Channel channel = channels.get(packet.channel);
+            if (channel == null) {
+                //getLogger().warning("Channel not found: `" + packet.channel + "'");
+                return;
+            }
+            String message = packet.message;
+            if (vaultPerm != null && vaultPerm.has(getServer().getWorlds().get(0), packet.sender, "chatlink.colors")) {
+                message = ChatColor.translateAlternateColorCodes('&', message);
+            }
+            channel.sendChat(packet.sender, event.getConnection().getName(), message);
+        } else if (event.getPacket() instanceof WhisperPacket) {
+            final WhisperPacket packet = (WhisperPacket)event.getPacket();
+            final ClientConnection connection = event.getConnection();
+            new BukkitRunnable() {
+                public void run() {
+                    Player player = getServer().getPlayer(packet.recipient);
+                    if (player == null) {
+                        return;
+                    }
+                    repliers.put(player.getName(), packet.sender);
+                    if (whisperCommand.msgRecipient(player, packet.sender, connection.getName(), packet.message)) {
+                        connection.sendPacket(new WhisperAckPacket(player.getName(), packet.sender, packet.message));
+                    }
                 }
-                channels.clear();
+            }.runTask(this);
         }
-
-        @Override
-        public boolean onCommand(CommandSender sender, Command command, String token, String args[]) {
-                if (args.length == 1 && args[0].equals("reload")) {
-                        try {
-                                clearChannels();
-                                reloadConfig();
-                                loadConfiguration();
-                                sender.sendMessage("Configuration reloaded.");
-                        } catch (Exception e) {
-                                e.printStackTrace();
-                                sender.sendMessage("An error occured. See console.");
-                        }
-                } else {
-                        sender.sendMessage("Usage: /chatlink [subcommand] ...");
-                        sender.sendMessage("Subcommands: reload");
-                }
-                return true;
-        }
-
-        @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-        public void onClientReceivePacket(ClientReceivePacketEvent event) {
-                if (event.getPacket() instanceof ChatPacket) {
-                        ChatPacket packet = (ChatPacket)event.getPacket();
-                        Channel channel = channels.get(packet.channel);
-                        if (channel == null) {
-                                //getLogger().warning("Channel not found: `" + packet.channel + "'");
-                                return;
-                        }
-                        String message = packet.message;
-                        if (vaultPerm != null && vaultPerm.has(getServer().getWorlds().get(0), packet.sender, "chatlink.colors")) {
-                                message = ChatColor.translateAlternateColorCodes('&', message);
-                        }
-                        channel.sendChat(packet.sender, event.getConnection().getName(), message);
-                } else if (event.getPacket() instanceof WhisperPacket) {
-                        final WhisperPacket packet = (WhisperPacket)event.getPacket();
-                        final ClientConnection connection = event.getConnection();
-                        new BukkitRunnable() {
-                                public void run() {
-                                        Player player = getServer().getPlayer(packet.recipient);
-                                        if (player == null) return;
-                                        if (whisperCommand.msgRecipient(player, packet.sender, connection.getName(), packet.message)) {
-                                                connection.sendPacket(new WhisperAckPacket(player.getName(), packet.sender, packet.message));
-                                        }
-                                }
-                        }.runTask(this);
-                }
-        }
+    }
         
-        @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-        public void onServerReceivePacket(ServerReceivePacketEvent event) {
-                if (event.getPacket() instanceof WhisperAckPacket) {
-                        final WhisperAckPacket packet = (WhisperAckPacket)event.getPacket();
-                        final ServerConnection connection = event.getConnection();
-                        new BukkitRunnable() {
-                                public void run() {
-                                        try {
-                                                Player player = getServer().getPlayer(packet.sender);
-                                                if (player == null) return;
-                                                whisperCommand.msgSender(player, packet.recipient, connection.getName(), packet.message);
-                                        } catch (Exception e) {
-                                                e.printStackTrace();
-                                        }
-                                }
-                        }.runTask(this);
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    public void onServerReceivePacket(ServerReceivePacketEvent event) {
+        if (event.getPacket() instanceof WhisperAckPacket) {
+            final WhisperAckPacket packet = (WhisperAckPacket)event.getPacket();
+            final ServerConnection connection = event.getConnection();
+            new BukkitRunnable() {
+                public void run() {
+                    try {
+                        repliers.put(packet.recipient, packet.sender);
+                        Player player = getServer().getPlayer(packet.sender);
+                        if (player == null) return;
+                        whisperCommand.msgSender(player, packet.recipient, connection.getName(), packet.message);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
+            }.runTask(this);
         }
+    }
 
-        public void loadConfiguration() {
-                synchronized (channels) { for (Channel channel : channels.values()) channel.disable(); }
-                whisperCommand.loadConfiguration();
-                channels.clear();
-                ConfigurationSection channelsSection = getConfig().getConfigurationSection("channels");
-                if (channelsSection == null) {
-                        channelsSection = getConfig().createSection("channels");
-                }
-                for (String name : channelsSection.getKeys(false)) {
-                        ConfigurationSection channelSection = channelsSection.getConfigurationSection(name);
-                        String channelType = channelSection.getString("Type", "default");
-                        Channel channel;
-                        if (channelType.equalsIgnoreCase("default")) {
-                                channel = new AsyncChatChannel(this, name);
-                        } else if (channelType.equalsIgnoreCase("async")) {
-                                channel = new AsyncChatChannel(this, name);
-                        } else if (channelType.equalsIgnoreCase("HeroChat")) {
-                                channel = new HeroChatChannel(this, name);
-                        } else {
-                                getLogger().warning("config.yml: channel `" + name + "': invalid type: `" + channelType + "'");
-                                continue;
-                        }
-                        channel.enable();
-                        channel.loadConfiguration(channelSection);
-                        channels.put(name, channel);
-                }
+    public void loadConfiguration() {
+        synchronized (channels) { for (Channel channel : channels.values()) channel.disable(); }
+        whisperCommand.loadConfiguration();
+        channels.clear();
+        ConfigurationSection channelsSection = getConfig().getConfigurationSection("channels");
+        if (channelsSection == null) {
+            channelsSection = getConfig().createSection("channels");
         }
+        for (String name : channelsSection.getKeys(false)) {
+            ConfigurationSection channelSection = channelsSection.getConfigurationSection(name);
+            String channelType = channelSection.getString("Type", "default");
+            Channel channel;
+            if (channelType.equalsIgnoreCase("default")) {
+                channel = new AsyncChatChannel(this, name);
+            } else if (channelType.equalsIgnoreCase("async")) {
+                channel = new AsyncChatChannel(this, name);
+            } else if (channelType.equalsIgnoreCase("HeroChat")) {
+                channel = new HeroChatChannel(this, name);
+            } else {
+                getLogger().warning("config.yml: channel `" + name + "': invalid type: `" + channelType + "'");
+                continue;
+            }
+            channel.enable();
+            channel.loadConfiguration(channelSection);
+            channels.put(name, channel);
+        }
+    }
 }

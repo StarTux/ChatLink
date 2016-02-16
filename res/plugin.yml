@@ -15,6 +15,10 @@ commands:
     description: Send a private message across servers
     usage: 'Usage: /<command> <player> <message>'
     permission: chatlink.whisper
+  xreply:
+    aliases: [ xr ]
+    description: Reply to last private message across servers
+    usage: 'Usage: /<command> <message>'
 permissions:
   chatlink.cmd:
     description: Execute the chatlink command
