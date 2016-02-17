@@ -37,16 +37,16 @@ public class WhisperAckPacket implements Packet {
     public Map<String, String> serialize() {
         Map<String, String> result = new HashMap<>();
         result.put("type", "WhisperAck");
-        result.put("sender", sender);
         result.put("recipient", recipient);
+        result.put("sender", sender);
         result.put("message", message);
         return result;
     }
 
     public static WhisperAckPacket deserialize(Map<String, String> map) {
         return new WhisperAckPacket(
-            (String)map.get("sender"),
             (String)map.get("recipient"),
+            (String)map.get("sender"),
             (String)map.get("message")
             );
     }
